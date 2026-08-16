@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addon id="repository.super.sentai"
        name="Super Sentai Repository"
-       version="1.0.1"
+       version="1.0.2"
        provider-name="Jorge">
 
     <extension point="xbmc.addon.repository"
@@ -16,7 +16,7 @@
         </checksum>
 
         <datadir zip="true">
-            https://jorgesgovia.github.io/super-sentai-kodi/
+            https://jorgesgovia.github.io/super-sentai-kodi/zips/
         </datadir>
 
     </extension>
