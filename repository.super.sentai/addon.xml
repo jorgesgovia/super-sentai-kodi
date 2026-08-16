@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addon id="repository.super.sentai"
        name="Super Sentai Repository"
-       version="1.0.2"
+       version="1.0.3"
        provider-name="Jorge">
 
     <extension point="xbmc.addon.repository"
