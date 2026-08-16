@@ -3,6 +3,7 @@
 import sys
 import re
 import urllib.request
+from urllib.parse import parse_qs, urlencode
 
 import xbmc
 import xbmcgui
@@ -319,6 +320,15 @@ def set_episode_metadata(
 # CARPETA PRINCIPAL
 # ============================================================
 
+def build_url(**kwargs):
+
+    return (
+        sys.argv[0]
+        + "?"
+        + urlencode(kwargs)
+    )
+
+
 def show_main():
 
     list_item = xbmcgui.ListItem(
@@ -329,9 +339,14 @@ def show_main():
         list_item
     )
 
+    url = build_url(
+        action="season",
+        season="1"
+    )
+
     xbmcplugin.addDirectoryItem(
         HANDLE,
-        "?action=season&season=1",
+        url,
         list_item,
         True
     )
@@ -350,11 +365,7 @@ def show_main():
 # TEMPORADA
 # ============================================================
 
-def show_season():
-
-    season = int(
-        sys.argv[2].split("=")[1]
-    )
+def show_season(season):
 
     season_data = SEASONS.get(
         season
@@ -434,15 +445,32 @@ def main():
 
     try:
 
-        action = ""
+        query = ""
 
         if len(sys.argv) > 2:
+            query = sys.argv[2]
 
-            action = sys.argv[2]
+        params = parse_qs(
+            query.lstrip("?")
+        )
 
-        if action == "?action=season&season=1":
+        action = params.get(
+            "action",
+            [""]
+        )[0]
 
-            show_season()
+        if action == "season":
+
+            season = int(
+                params.get(
+                    "season",
+                    ["1"]
+                )[0]
+            )
+
+            show_season(
+                season
+            )
 
         else:
 
