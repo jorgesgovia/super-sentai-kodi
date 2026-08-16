@@ -93,7 +93,6 @@ def drive_url(file_id):
         "User-Agent": "Mozilla/5.0"
     })
 
-    # Primera petición.
     response = session.get(
         base_url,
         allow_redirects=True,
@@ -105,13 +104,9 @@ def drive_url(file_id):
         ""
     ).lower()
 
-    # Si Google ya entrega el MP4 directamente.
     if "video/mp4" in content_type:
-
         return response.url
 
-    # Google Drive puede mostrar la advertencia
-    # de análisis de virus para archivos grandes.
     text = response.text
 
     uuid_match = re.search(
@@ -120,52 +115,22 @@ def drive_url(file_id):
         re.I
     )
 
-    confirm_match = re.search(
-        r'name="confirm"\s+value="([^"]+)"',
-        text,
-        re.I
-    )
-
     if not uuid_match:
         raise Exception(
-            "Google Drive no proporcionó UUID de descarga"
+            "Google Drive no proporcionó UUID"
         )
 
     uuid = uuid_match.group(1)
 
-    confirm = (
-        confirm_match.group(1)
-        if confirm_match
-        else "t"
-    )
-
     final_url = (
         "https://drive.usercontent.google.com/download"
         "?id=" + file_id +
-        "&export=download" +
-        "&confirm=" + confirm +
+        "&export=download"
+        "&confirm=t"
         "&uuid=" + uuid
     )
 
-    # Comprobamos que la segunda URL sea realmente el vídeo.
-    check = session.head(
-        final_url,
-        allow_redirects=True,
-        timeout=30
-    )
-
-    final_type = check.headers.get(
-        "Content-Type",
-        ""
-    ).lower()
-
-    if "video/mp4" not in final_type:
-        raise Exception(
-            "Google Drive no devolvió video/mp4"
-        )
-
     return final_url
-
 
 def show_error(message):
 
@@ -199,46 +164,21 @@ def show_episodes():
             episode = item["episode"]
             file_id = item["fileId"]
 
-            try:
-
-                url = drive_url(file_id)
-
-            except Exception as error:
-
-                list_item = xbmcgui.ListItem(
-                    label="Episodio %02d — ERROR" % episode
-                )
-
-                list_item.setInfo(
-                    "video",
-                    {
-                        "title":
-                            "Choushinsei Flashman - "
-                            "Episodio %02d" % episode
-                    }
-                )
-
-                xbmcplugin.addDirectoryItem(
-                    HANDLE,
-                    "",
-                    list_item,
-                    False
-                )
-
-                continue
+            # Pasamos el fileId mediante una URL del addon.
+            # La resolución real se hará al seleccionar el episodio.
+            url = (
+                "plugin://plugin.video.super-sentai/"
+                "?action=play"
+                "&file_id=" + file_id
+            )
 
             list_item = xbmcgui.ListItem(
-                label="Episodio %02d" % episode,
-                path=url
+                label="Episodio %02d" % episode
             )
 
             list_item.setProperty(
                 "IsPlayable",
                 "true"
-            )
-
-            list_item.setMimeType(
-                "video/mp4"
             )
 
             list_item.setInfo(
@@ -273,4 +213,40 @@ def show_episodes():
         )
 
 
-show_episodes()
+def play_episode(file_id):
+
+    try:
+
+        url = drive_url(file_id)
+
+        xbmcplugin.setResolvedUrl(
+            HANDLE,
+            True,
+            xbmcgui.ListItem(
+                path=url
+            )
+        )
+
+    except Exception as error:
+
+        show_error(
+            "Error al preparar el video:\n\n"
+            + str(error)
+        )
+
+
+params = {}
+
+if len(sys.argv) > 2:
+    query = sys.argv[2].lstrip("?")
+
+    for part in query.split("&"):
+        if "=" in part:
+            key, value = part.split("=", 1)
+            params[key] = value
+
+if params.get("action") == "play":
+    play_episode(params.get("file_id", ""))
+else:
+    show_episodes()
+
