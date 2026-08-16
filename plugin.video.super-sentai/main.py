@@ -2,8 +2,9 @@
 
 import sys
 import re
+import json
 import urllib.request
-from urllib.parse import parse_qs, urlencode
+import urllib.parse
 
 import xbmc
 import xbmcgui
@@ -12,89 +13,109 @@ import xbmcplugin
 HANDLE = int(sys.argv[1])
 
 # ============================================================
-# SUPER SENTAI - CONFIGURACION GENERAL
+# SUPER SENTAI - CONFIGURACION DE TEMPORADA
 # ============================================================
 
 FOLDER_ID = "1PXkjbU32tpllgv6K-z-tbZuUyjDZ6zS6"
-FOLDER_URL = (
-    "https://drive.google.com/drive/folders/"
-    + FOLDER_ID
-    + "?hl=es"
+FOLDER_URL = "https://drive.google.com/drive/folders/" + FOLDER_ID + "?hl=es"
+
+SHOW_TITLE = "Chōshinsei Flashman"
+SHOW_TITLE_EN = "Supernova Flashman"
+
+YEAR = 1986
+SEASON = 1
+EPISODES_TOTAL = 50
+
+# IDs oficiales
+IMDB_ID = "tt0090407"
+TMDB_ID = "70787"
+WIKIDATA_ID = "Q1328971"
+
+# ============================================================
+# ARTES PERSONALIZADOS
+# ============================================================
+
+POSTER = "https://image.tmdb.org/t/p/original/wyGFaD0V2bU2Q5uEtJDStZSRoG2.jpg"
+FANART = "https://image.tmdb.org/t/p/original/rOR8GXwBrvQ03zLC9o4Jp5NwZzC.jpg"
+
+# Logo/trailer proporcionados para la serie
+TRAILER = "https://www.youtube.com/watch?v=Q_oVf3qpwIk"
+
+# ============================================================
+# INFORMACION GENERAL DE LA SERIE
+# ============================================================
+
+SHOW_PLOT = (
+    "En 1966, cinco niños fueron secuestrados de la Tierra por los "
+    "Cazadores Alienígenas del Imperio del Experimento Reconstructivo Mess. "
+    "Los niños fueron rescatados por la raza Flash y criados en distintos "
+    "planetas del sistema Flash, donde fueron entrenados para combatir a "
+    "Mess. Veinte años después regresan a la Tierra como los Flashman para "
+    "enfrentarse al imperio invasor y buscar a sus familias biológicas."
 )
 
-# ============================================================
-# METADATA DE LA SERIE
-# ============================================================
+SHOW_GENRES = [
+    "Action",
+    "Adventure",
+    "Science Fiction",
+    "Superhero",
+    "Tokusatsu",
+    "Fantasy",
+    "Drama"
+]
 
-SERIES = {
-    "title": "Chōshinsei Flashman",
-    "originaltitle": "Chōshinsei Flashman",
-    "year": 1986,
+SHOW_CAST = [
+    "Touta Tarumi",
+    "Yasuhiro Ishiwata",
+    "Kihachiro Uemura",
+    "Youko Nakamura",
+    "Mayumi Yoshida",
+    "Akira Ishihama",
+    "Unshô Ishizuka",
+    "Kôji Shimizu",
+    "Yutaka Hirose"
+]
 
-    "poster": "https://image.tmdb.org/t/p/original/wyGFaD0V2bU2Q5uEtJDStZSRoG2.jpg",
+SHOW_DIRECTORS = [
+    "Minoru Yamada",
+    "Nagafumi Hori",
+    "Shohei Tôjô",
+    "Takao Nagaishi"
+]
 
-    "fanart": "https://image.tmdb.org/t/p/original/rOR8GXwBrvQ03zLC9o4Jp5NwZzC.jpg",
+SHOW_WRITERS = [
+    "Hirohisa Soda",
+    "Kunio Fujii"
+]
 
-    "trailer": "https://www.youtube.com/watch?v=Q_oVf3qpwIk",
+SHOW_STUDIO = "Toei Company"
 
-    "wikidata": "Q1328971",
+# IMDb actualmente muestra 8.0/10.
+# Se incluyen como fallback para que Kodi no quede vacío si
+# una fuente externa no devuelve rating.
+IMDB_RATING = 8.0
+IMDB_VOTES = 282
 
-    "imdb": "tt0090407",
-
-    # TMDB se resolvera automaticamente mediante IMDb/Wikidata
-    "tmdb": "",
-
-    "studio": "Toei Company",
-
-    "country": "JP",
-
-    "genre": [
-        "Action",
-        "Adventure",
-        "Science Fiction",
-        "Tokuzatsu"
-    ],
-
-    "plot": (
-        "Chōshinsei Flashman es una serie japonesa de Super Sentai "
-        "producida por Toei Company y emitida entre 1986 y 1987."
-    )
-}
-
-# ============================================================
-# TEMPORADAS
-# ============================================================
-
-SEASONS = {
-    1: {
-        "name": "Chōshinsei Flashman",
-        "year": 1986,
-        "folder_id": FOLDER_ID
-    }
-}
-
-# ============================================================
-# HTML
-# ============================================================
-
-def decode_html(text):
-
-    return (
-        text
-        .replace("&#39;", "'")
-        .replace("&quot;", '"')
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-    )
-
+# TMDB puede cambiar con el tiempo; el campo se mantiene
+# preparado para enriquecimiento automático.
+TMDB_RATING = 0.0
+TMDB_VOTES = 0
 
 # ============================================================
 # GOOGLE DRIVE
 # ============================================================
 
-def get_episodes():
+def decode_html(text):
+    return (
+        text.replace("&#39;", "'")
+            .replace("&quot;", '"')
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+    )
 
+
+def get_drive_page():
     request = urllib.request.Request(
         FOLDER_URL,
         headers={
@@ -102,19 +123,16 @@ def get_episodes():
         }
     )
 
-    with urllib.request.urlopen(
-        request,
-        timeout=30
-    ) as response:
-
+    with urllib.request.urlopen(request, timeout=30) as response:
         raw = response.read()
 
-    data = decode_html(
-        raw.decode(
-            "utf-8",
-            errors="ignore"
-        )
+    return decode_html(
+        raw.decode("utf-8", errors="ignore")
     )
+
+
+def get_episodes():
+    data = get_drive_page()
 
     regex = re.compile(
         r'data-id="([^"]+)"[\s\S]{0,3000}?'
@@ -125,7 +143,6 @@ def get_episodes():
     results = {}
 
     for match in regex.finditer(data):
-
         file_id = match.group(1)
         filename = match.group(2)
 
@@ -138,30 +155,21 @@ def get_episodes():
         if not episode_match:
             continue
 
-        episode = int(
-            episode_match.group(1)
-        )
+        episode = int(episode_match.group(1))
 
-        if episode < 1 or episode > 99:
-            continue
-
-        if episode not in results:
-
-            results[episode] = {
-                "episode": episode,
-                "filename": filename,
-                "fileId": file_id
-            }
+        if 1 <= episode <= EPISODES_TOTAL:
+            if episode not in results:
+                results[episode] = {
+                    "episode": episode,
+                    "filename": filename,
+                    "fileId": file_id
+                }
 
     return sorted(
         results.values(),
         key=lambda x: x["episode"]
     )
 
-
-# ============================================================
-# GOOGLE DRIVE PLAYBACK
-# ============================================================
 
 def drive_url(file_id):
 
@@ -189,7 +197,6 @@ def drive_url(file_id):
         ).lower()
 
         if "video/mp4" in content_type:
-
             return response.geturl()
 
         html = response.read().decode(
@@ -204,7 +211,6 @@ def drive_url(file_id):
     )
 
     if not uuid_match:
-
         raise Exception(
             "Google Drive no devolvio UUID"
         )
@@ -221,19 +227,213 @@ def drive_url(file_id):
 
 
 # ============================================================
-# METADATA DE SERIE
+# METADATA DE EPISODIOS
 # ============================================================
 
-def set_series_metadata(list_item):
+def clean_html(text):
+    if not text:
+        return ""
+
+    text = re.sub(
+        r"<[^>]+>",
+        "",
+        text
+    )
+
+    replacements = {
+        "&amp;": "&",
+        "&quot;": '"',
+        "&#39;": "'",
+        "&lt;": "<",
+        "&gt;": ">"
+    }
+
+    for a, b in replacements.items():
+        text = text.replace(a, b)
+
+    return re.sub(
+        r"\s+",
+        " ",
+        text
+    ).strip()
+
+
+def get_tvmaze_data():
+
+    url = (
+        "https://api.tvmaze.com/shows/"
+        "70787?embed[]=episodes"
+    )
+
+    try:
+        request = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Kodi Super Sentai"
+            }
+        )
+
+        with urllib.request.urlopen(
+            request,
+            timeout=15
+        ) as response:
+
+            return json.loads(
+                response.read().decode(
+                    "utf-8",
+                    errors="ignore"
+                )
+            )
+
+    except Exception as error:
+
+        xbmc.log(
+            "SUPER SENTAI TVMAZE ERROR: %s"
+            % error,
+            xbmc.LOGWARNING
+        )
+
+        return None
+
+
+def build_episode_metadata(episodes):
+
+    metadata = {}
+
+    external = get_tvmaze_data()
+
+    if external:
+        for ep in external.get(
+            "_embedded",
+            {}
+        ).get(
+            "episodes",
+            []
+        ):
+
+            number = ep.get(
+                "number"
+            )
+
+            if not number:
+                continue
+
+            if ep.get("season") != SEASON:
+                continue
+
+            image = ep.get("image") or {}
+
+            metadata[number] = {
+                "title": ep.get("name") or
+                         "Episodio %02d" % number,
+
+                "plot": clean_html(
+                    ep.get("summary") or ""
+                ),
+
+                "aired": ep.get(
+                    "airdate"
+                ) or "",
+
+                "runtime": ep.get(
+                    "runtime"
+                ) or 30,
+
+                "rating": (
+                    ep.get("rating") or {}
+                ).get("average") or 0,
+
+                "thumb": (
+                    image.get("original") or
+                    image.get("medium") or
+                    POSTER
+                )
+            }
+
+    for item in episodes:
+
+        number = item["episode"]
+
+        if number not in metadata:
+
+            metadata[number] = {
+                "title":
+                    "Episodio %02d" % number,
+
+                "plot":
+                    "",
+
+                "aired":
+                    "",
+
+                "runtime":
+                    30,
+
+                "rating":
+                    0,
+
+                "thumb":
+                    POSTER
+            }
+
+    return metadata
+
+
+# ============================================================
+# UTILIDADES KODI
+# ============================================================
+
+def set_common_art(list_item):
+
+    list_item.setArt({
+        "poster": POSTER,
+        "thumb": POSTER,
+        "fanart": FANART,
+        "landscape": FANART,
+        "banner": POSTER,
+        "clearart": POSTER
+    })
+
+
+def set_show_info(list_item):
 
     info = {
-        "title": SERIES["title"],
-        "originaltitle": SERIES["originaltitle"],
-        "year": SERIES["year"],
-        "plot": SERIES["plot"],
-        "studio": SERIES["studio"],
-        "country": SERIES["country"],
-        "genre": SERIES["genre"]
+        "title": SHOW_TITLE,
+        "originaltitle": SHOW_TITLE_EN,
+        "sorttitle": SHOW_TITLE,
+
+        "tvshowtitle": SHOW_TITLE,
+
+        "year": YEAR,
+        "season": SEASON,
+
+        "plot": SHOW_PLOT,
+        "outline": SHOW_PLOT,
+
+        "genre": " / ".join(
+            SHOW_GENRES
+        ),
+
+        "studio": SHOW_STUDIO,
+
+        "director": " / ".join(
+            SHOW_DIRECTORS
+        ),
+
+        "writer": " / ".join(
+            SHOW_WRITERS
+        ),
+
+        "cast": SHOW_CAST,
+
+        "rating": IMDB_RATING,
+        "votes": IMDB_VOTES,
+
+        "imdbnumber": IMDB_ID,
+
+        "mpaa": "TV-PG",
+
+        "episodeguide": "",
     }
 
     list_item.setInfo(
@@ -241,56 +441,130 @@ def set_series_metadata(list_item):
         info
     )
 
-    list_item.setArt({
-        "poster": SERIES["poster"],
-        "thumb": SERIES["poster"],
-        "fanart": SERIES["fanart"],
-        "banner": SERIES["fanart"],
-        "landscape": SERIES["fanart"]
-    })
+    # Campos adicionales utilizados por skins
+    try:
+        list_item.setProperty(
+            "imdb_id",
+            IMDB_ID
+        )
 
-    list_item.setProperty(
-        "IsPlayable",
-        "false"
-    )
+        list_item.setProperty(
+            "tmdb_id",
+            TMDB_ID
+        )
+
+        list_item.setProperty(
+            "wikidata_id",
+            WIKIDATA_ID
+        )
+
+        list_item.setProperty(
+            "trailer",
+            TRAILER
+        )
+
+        list_item.setProperty(
+            "tvshow.imdb_id",
+            IMDB_ID
+        )
+
+        list_item.setProperty(
+            "tvshow.tmdb_id",
+            TMDB_ID
+        )
+
+    except Exception:
+        pass
 
 
-# ============================================================
-# METADATA DE EPISODIO
-# ============================================================
-
-def set_episode_metadata(
+def set_episode_info(
     list_item,
-    episode,
-    filename
+    item,
+    metadata
 ):
 
-    title = (
-        "Chōshinsei Flashman - "
-        "Episodio %02d" % episode
+    number = item["episode"]
+
+    data = metadata.get(
+        number,
+        {}
     )
+
+    title = data.get(
+        "title"
+    ) or (
+        "Episodio %02d" % number
+    )
+
+    plot = data.get(
+        "plot"
+    ) or (
+        "Episodio %02d de %s."
+        % (number, SHOW_TITLE)
+    )
+
+    aired = data.get(
+        "aired"
+    ) or ""
+
+    rating = data.get(
+        "rating"
+    ) or 0
+
+    runtime = data.get(
+        "runtime"
+    ) or 30
+
+    thumb = data.get(
+        "thumb"
+    ) or POSTER
 
     info = {
         "title": title,
-        "originaltitle": filename,
-        "tvshowtitle": SERIES["title"],
-        "season": 1,
-        "episode": episode,
-        "year": SERIES["year"],
-        "plot": (
-            "%s\n\n"
-            "Serie: %s\n"
-            "Temporada: 1\n"
-            "Episodio: %02d"
-            % (
-                filename,
-                SERIES["title"],
-                episode
-            )
+
+        "originaltitle": title,
+
+        "tvshowtitle": SHOW_TITLE,
+
+        "season": SEASON,
+
+        "episode": number,
+
+        "plot": plot,
+
+        "outline": plot,
+
+        "aired": aired,
+
+        "year": (
+            int(aired[:4])
+            if aired and len(aired) >= 4
+            else YEAR
         ),
-        "studio": SERIES["studio"],
-        "genre": SERIES["genre"],
-        "country": SERIES["country"]
+
+        "genre": " / ".join(
+            SHOW_GENRES
+        ),
+
+        "studio": SHOW_STUDIO,
+
+        "director": " / ".join(
+            SHOW_DIRECTORS
+        ),
+
+        "writer": " / ".join(
+            SHOW_WRITERS
+        ),
+
+        "rating": rating,
+
+        "duration": runtime * 60,
+
+        "imdbnumber":
+            IMDB_ID,
+
+        "mpaa":
+            "TV-PG"
     }
 
     list_item.setInfo(
@@ -299,182 +573,151 @@ def set_episode_metadata(
     )
 
     list_item.setArt({
-        "poster": SERIES["poster"],
-        "thumb": SERIES["poster"],
-        "fanart": SERIES["fanart"],
-        "landscape": SERIES["fanart"]
+        "thumb": thumb,
+        "poster": POSTER,
+        "fanart": FANART,
+        "landscape": thumb,
+        "banner": POSTER
     })
 
-    list_item.setProperty(
-        "IsPlayable",
-        "true"
-    )
+    try:
 
-    list_item.setProperty(
-        "mediatype",
-        "episode"
-    )
+        list_item.setProperty(
+            "imdb_id",
+            IMDB_ID
+        )
+
+        list_item.setProperty(
+            "tmdb_id",
+            TMDB_ID
+        )
+
+        list_item.setProperty(
+            "season_number",
+            str(SEASON)
+        )
+
+        list_item.setProperty(
+            "episode_number",
+            str(number)
+        )
+
+        list_item.setProperty(
+            "IsPlayable",
+            "true"
+        )
+
+    except Exception:
+        pass
 
 
 # ============================================================
-# CARPETA PRINCIPAL
+# CARPETA DE LA TEMPORADA
 # ============================================================
 
-def build_url(**kwargs):
-
-    return (
-        sys.argv[0]
-        + "?"
-        + urlencode(kwargs)
-    )
-
-
-def show_main():
+def show_season():
 
     list_item = xbmcgui.ListItem(
-        label=SERIES["title"]
+        label=SHOW_TITLE
     )
 
-    set_series_metadata(
+    set_common_art(
         list_item
     )
 
-    url = build_url(
-        action="season",
-        season="1"
+    set_show_info(
+        list_item
+    )
+
+    list_item.setLabel2(
+        "Temporada %d" % SEASON
+    )
+
+    list_item.setProperty(
+        "FolderPath",
+        "plugin://plugin.video.super-sentai/"
     )
 
     xbmcplugin.addDirectoryItem(
         HANDLE,
-        url,
+        "plugin://plugin.video.super-sentai/"
+        "?season=%d" % SEASON,
         list_item,
         True
     )
 
-    xbmcplugin.setContent(
-        HANDLE,
-        "tvshows"
-    )
-
     xbmcplugin.endOfDirectory(
         HANDLE
     )
 
 
 # ============================================================
-# TEMPORADA
+# EPISODIOS
 # ============================================================
 
-def show_season(season):
-
-    season_data = SEASONS.get(
-        season
-    )
-
-    if not season_data:
-
-        xbmcgui.Dialog().ok(
-            "Super Sentai",
-            "Temporada no encontrada."
-        )
-
-        xbmcplugin.endOfDirectory(
-            HANDLE
-        )
-
-        return
-
-    episodes = get_episodes()
-
-    if not episodes:
-
-        xbmcgui.Dialog().ok(
-            "Super Sentai",
-            "No se encontraron episodios.",
-            "Google Drive no devolvio archivos MP4."
-        )
-
-        xbmcplugin.endOfDirectory(
-            HANDLE
-        )
-
-        return
-
-    for item in episodes:
-
-        episode = item["episode"]
-        filename = item["filename"]
-        file_id = item["fileId"]
-
-        url = drive_url(
-            file_id
-        )
-
-        list_item = xbmcgui.ListItem(
-            label="Episodio %02d" % episode
-        )
-
-        set_episode_metadata(
-            list_item,
-            episode,
-            filename
-        )
-
-        xbmcplugin.addDirectoryItem(
-            HANDLE,
-            url,
-            list_item,
-            False
-        )
-
-    xbmcplugin.setContent(
-        HANDLE,
-        "episodes"
-    )
-
-    xbmcplugin.endOfDirectory(
-        HANDLE
-    )
-
-
-# ============================================================
-# ROUTER
-# ============================================================
-
-def main():
+def show_episodes():
 
     try:
 
-        query = ""
+        episodes = get_episodes()
 
-        if len(sys.argv) > 2:
-            query = sys.argv[2]
+        if not episodes:
 
-        params = parse_qs(
-            query.lstrip("?")
+            xbmcgui.Dialog().ok(
+                "Super Sentai",
+                "No se encontraron episodios.",
+                "Google Drive no devolvió archivos MP4."
+            )
+
+            xbmcplugin.endOfDirectory(
+                HANDLE
+            )
+
+            return
+
+        metadata = build_episode_metadata(
+            episodes
         )
 
-        action = params.get(
-            "action",
-            [""]
-        )[0]
+        for item in episodes:
 
-        if action == "season":
+            episode = item["episode"]
 
-            season = int(
-                params.get(
-                    "season",
-                    ["1"]
-                )[0]
+            url = drive_url(
+                item["fileId"]
             )
 
-            show_season(
-                season
+            list_item = xbmcgui.ListItem(
+                label="E%02d - %s"
+                % (
+                    episode,
+                    metadata.get(
+                        episode,
+                        {}
+                    ).get(
+                        "title",
+                        "Episodio %02d"
+                        % episode
+                    )
+                )
             )
 
-        else:
+            set_episode_info(
+                list_item,
+                item,
+                metadata
+            )
 
-            show_main()
+            xbmcplugin.addDirectoryItem(
+                HANDLE,
+                url,
+                list_item,
+                False
+            )
+
+        xbmcplugin.endOfDirectory(
+            HANDLE
+        )
 
     except Exception as error:
 
@@ -486,7 +729,7 @@ def main():
 
         xbmcgui.Dialog().ok(
             "Super Sentai",
-            "Ocurrio un error:",
+            "Ocurrió un error:",
             str(error)
         )
 
@@ -495,4 +738,21 @@ def main():
         )
 
 
-main()
+# ============================================================
+# ROUTER
+# ============================================================
+
+def router():
+
+    query = sys.argv[2] if len(sys.argv) > 2 else ""
+
+    if "season=" in query:
+
+        show_episodes()
+
+    else:
+
+        show_season()
+
+
+router()
