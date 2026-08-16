@@ -85,7 +85,17 @@ def show_episodes():
             url = drive_url(item["fileId"])
 
             list_item = xbmcgui.ListItem(
-                label="Episodio %02d" % episode
+                label="Episodio %02d" % episode,
+                path=url
+            )
+
+            list_item.setProperty(
+                "IsPlayable",
+                "true"
+            )
+
+            list_item.setMimeType(
+                "video/mp4"
             )
 
             list_item.setInfo(
