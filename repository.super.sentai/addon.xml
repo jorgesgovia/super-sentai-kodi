@@ -7,17 +7,21 @@
     <extension point="xbmc.addon.repository"
                name="Super Sentai Repository">
 
-        <info compressed="false">
-            https://jorgesgovia.github.io/super-sentai-kodi/addons.xml
-        </info>
+        <dir>
 
-        <checksum>
-            https://jorgesgovia.github.io/super-sentai-kodi/addons.xml.md5
-        </checksum>
+            <info compressed="false">
+                https://jorgesgovia.github.io/super-sentai-kodi/addons.xml
+            </info>
 
-        <datadir zip="true">
-            https://jorgesgovia.github.io/super-sentai-kodi/zips/
-        </datadir>
+            <checksum>
+                https://jorgesgovia.github.io/super-sentai-kodi/addons.xml.md5
+            </checksum>
+
+            <datadir zip="true">
+                https://jorgesgovia.github.io/super-sentai-kodi/zips/
+            </datadir>
+
+        </dir>
 
     </extension>
 
